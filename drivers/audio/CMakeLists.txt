@@ -2,6 +2,7 @@
 
 zephyr_library()
 
+zephyr_library_sources_ifdef(CONFIG_AUDIO_ADAU1x61	adau1x61.c)
 zephyr_library_sources_ifdef(CONFIG_AUDIO_TLV320DAC	tlv320dac310x.c)
 zephyr_library_sources_ifdef(CONFIG_AUDIO_INTEL_DMIC	intel_dmic.c)
 zephyr_library_sources_ifdef(CONFIG_AUDIO_INTEL_DMIC	decimation/pdm_decim_int32_02_4288_5100_010_095.c)
