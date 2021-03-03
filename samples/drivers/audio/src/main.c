@@ -63,6 +63,9 @@ static void audio_start(void)
 	/* start codec output */
 	audio_codec_start_output(codec_device);
 
+	/* start codec input */
+	audio_codec_start_input(codec_device);
+
 	/* set volume */
 	ret = audio_codec_set_property(codec_device, AUDIO_PROPERTY_OUTPUT_VOLUME, AUDIO_CHANNEL_ALL, (audio_property_value_t)0);
 }
@@ -73,6 +76,10 @@ static void audio_stop(void)
 
 	/* set volume */
 	ret = audio_codec_set_property(codec_device, AUDIO_PROPERTY_OUTPUT_MUTE, AUDIO_CHANNEL_ALL, (audio_property_value_t)1);
+
+	audio_codec_stop_output(codec_device);
+
+	audio_codec_stop_input(codec_device);
 
 	LOG_DBG("Stopping audio playback...");
 }
