@@ -33,3 +33,14 @@
 	compatible = "nordic,nrf-usbd";
 	status = "okay";
 };
+
+&i2c1 {
+	status = "okay";
+	clock-frequency = <I2C_BITRATE_FAST>;
+
+	codec0: adau1361@38 {
+		compatible = "adi,adau1x61";
+		reg = <0x38>;
+		label = "ADAU1761";
+	};
+};
