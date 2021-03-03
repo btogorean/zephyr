@@ -58,6 +58,7 @@ static int adau1x61_configure_dai(const struct device *dev,
 static int adau1x61_configure_clocks(const struct device *dev,
 				  struct audio_codec_cfg *cfg);
 static void adau1x61_configure_output(const struct device *dev);
+static void adau1x61_configure_input(const struct device *dev);
 static int adau1x61_set_output_volume(const struct device *dev,
 				      audio_channel_t channel, int vol);
 static int adau1x61_set_output_mute(const struct device *dev,
@@ -116,6 +117,7 @@ static int adau1x61_configure(const struct device *dev,
 		return -EIO;
 
 	adau1x61_configure_output(dev);
+	adau1x61_configure_input(dev);
 
 	return 0;
 }
@@ -128,26 +130,56 @@ static void adau1x61_start_output(const struct device *dev)
 			    ADAU1X61_DAC_CONTROL0_DACEN_LEFT_DAC |
 			    ADAU1X61_DAC_CONTROL0_DACEN_RIGHT_DAC);
 
-	/* unmute DAC mixers MX3 and MX4 */
+	/* unmute left DAC mixer MX3 */
 	adau1x61_write_reg(dev, ADAU1X61_PLAY_MIXER_LEFT0,
 			   ADAU1X61_PLAY_MIXER_LEFT0_MIXER_EN |
 			   ADAU1X61_PLAY_MIXER_LEFT0_LEFT_MUTE);
+	/* unmute right DAC mixer MX4 */
 	adau1x61_write_reg(dev, ADAU1X61_PLAY_MIXER_RIGHT0,
 			   ADAU1X61_PLAY_MIXER_RIGHT0_MIXER_EN |
 			   ADAU1X61_PLAY_MIXER_RIGHT0_RIGHT_MUTE);
-
-	ADAU1X61_DUMP_REGS(dev);
 }
 
 static void adau1x61_stop_output(const struct device *dev)
 {
-#if 0
 	/* mute DAC channels */
-	adau1x61_write_reg(dev, VOL_CTRL_ADDR, VOL_CTRL_MUTE_DEFAULT);
+	adau1x61_write_reg(dev, ADAU1X61_PLAY_MIXER_LEFT0, 0);
+	adau1x61_write_reg(dev, ADAU1X61_PLAY_MIXER_RIGHT0, 0);
 
 	/* powerdown DAC channels */
-	adau1x61_write_reg(dev, DATA_PATH_SETUP_ADDR, DAC_LR_POWERDN_DEFAULT);
-#endif
+	adau1x61_write_reg(dev, ADAU1X61_DAC_CONTROL0, 0);
+}
+
+static void adau1x61_start_input(const struct device *dev)
+{
+	/* powerup ADC channels */
+	adau1x61_update_reg(dev, ADAU1X61_ADC_CONTROL,
+			    ADAU1X61_ADC_CONTROL_ADCEN_MASK,
+			    ADAU1X61_ADC_CONTROL_ADCEN_LEFT_ADC |
+			    ADAU1X61_ADC_CONTROL_ADCEN_RIGHT_ADC);
+
+	/* unmute left ADC mixer MX1 */
+	adau1x61_update_reg(dev, ADAU1X61_REC_MIXER_LEFT0,
+			    ADAU1X61_REC_MIXER_LEFT0_MIXER_EN,
+			    ADAU1X61_REC_MIXER_LEFT0_MIXER_EN);
+	/* unmute right ADC mixer MX2 */
+	adau1x61_update_reg(dev, ADAU1X61_REC_MIXER_RIGHT0,
+			    ADAU1X61_REC_MIXER_RIGHT0_MIXER_EN,
+			    ADAU1X61_REC_MIXER_RIGHT0_MIXER_EN);
+}
+
+static void adau1x61_stop_input(const struct device *dev)
+{
+	/* powerdown ADC channels */
+	adau1x61_update_reg(dev, ADAU1X61_ADC_CONTROL,
+			    ADAU1X61_ADC_CONTROL_ADCEN_MASK, 0);
+
+	/* mute left ADC mixer MX1 */
+	adau1x61_update_reg(dev, ADAU1X61_REC_MIXER_LEFT0,
+			    ADAU1X61_REC_MIXER_LEFT0_MIXER_EN, 0);
+	/* mute right ADC mixer MX2 */
+	adau1x61_update_reg(dev, ADAU1X61_REC_MIXER_RIGHT0,
+			    ADAU1X61_REC_MIXER_RIGHT0_MIXER_EN, 0);
 }
 
 static int adau1x61_set_property(const struct device *dev,
@@ -161,6 +193,12 @@ static int adau1x61_set_property(const struct device *dev,
 		break;
 	case AUDIO_PROPERTY_OUTPUT_MUTE:
 		return adau1x61_set_output_mute(dev, channel, val.mute);
+		break;
+	case AUDIO_PROPERTY_INPUT_GAIN:
+		return 0;
+		break;
+	case AUDIO_PROPERTY_INPUT_MUTE:
+		return 0;
 		break;
 	default:
 		break;
@@ -360,7 +398,6 @@ static int adau1x61_configure_clocks(const struct device *dev,
 int adau1x61_configure_pll(unsigned int freq_in, unsigned int freq_out,
 	uint8_t regs[5])
 {
-#if 0
 	unsigned int r, n, m, i, j;
 	unsigned int div;
 
@@ -396,7 +433,7 @@ int adau1x61_configure_pll(unsigned int freq_in, unsigned int freq_out,
 	regs[4] = (r << 3) | (div << 1);
 	if (m != 0)
 		regs[4] |= 1; /* Fractional mode */
-#endif
+
 	return 0;
 }
 
@@ -440,6 +477,11 @@ static void adau1x61_configure_output(const struct device *dev)
 	val |= HEADPHONE_DRV_POWERUP | HEADPHONE_DRV_RESERVED;
 	adau1x61_write_reg(dev, HEADPHONE_DRV_ADDR, val);
 #endif
+}
+
+static void adau1x61_configure_input(const struct device *dev)
+{
+
 }
 
 static int adau1x61_set_output_volume(const struct device *dev,
@@ -518,10 +560,12 @@ static const struct audio_codec_api adau1x61_driver_api = {
 	.configure		= adau1x61_configure,
 	.start_output		= adau1x61_start_output,
 	.stop_output		= adau1x61_stop_output,
+	.start_input		= adau1x61_start_input,
+	.stop_input		= adau1x61_stop_input,
 	.set_property		= adau1x61_set_property,
 	.apply_properties	= adau1x61_apply_properties,
 };
 
-DEVICE_AND_API_INIT(adau1x61, DT_INST_LABEL(0), adau1x61_initialize,
+DEVICE_DT_INST_DEFINE(0, adau1x61_initialize, device_pm_control_nop,
 		&adau1x61_device_data, &adau1x61_device_config, POST_KERNEL,
 		CONFIG_AUDIO_CODEC_INIT_PRIORITY, &adau1x61_driver_api);
