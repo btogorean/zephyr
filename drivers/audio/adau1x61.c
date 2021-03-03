@@ -360,6 +360,7 @@ static int adau1x61_configure_clocks(const struct device *dev,
 int adau1x61_configure_pll(unsigned int freq_in, unsigned int freq_out,
 	uint8_t regs[5])
 {
+#if 0
 	unsigned int r, n, m, i, j;
 	unsigned int div;
 
@@ -395,7 +396,7 @@ int adau1x61_configure_pll(unsigned int freq_in, unsigned int freq_out,
 	regs[4] = (r << 3) | (div << 1);
 	if (m != 0)
 		regs[4] |= 1; /* Fractional mode */
-
+#endif
 	return 0;
 }
 
