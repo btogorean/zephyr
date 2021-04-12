@@ -6,22 +6,3 @@ config AUDIO_ADAU1x61
 	depends on I2C
 	help
 	  Enable Analog Devices ADAU1361/1761/1961 support on the selected board
-
-if AUDIO_ADAU1x61
-
-config AUDIO_ADAU1x61_HP_ENABLE
-	bool "Headphones Output"
-
-config AUDIO_ADAU1x61_LINE_ENABLE
-	bool "Line Output"
-
-config AUDIO_ADAU1x61_CLK_SRC_PLL
-	bool "Clock source PLL"
-
-config AUDIO_ADAU1x61_PLL_IN_FREQ
-	depends on AUDIO_ADAU1x61_CLK_SRC_PLL
-	int "PLL input CLK in Hz"
-	default 12000000
-	range 8000000 27000000
-
-endif # AUDIO_ADAU1x61
