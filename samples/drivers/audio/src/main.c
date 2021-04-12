@@ -18,10 +18,6 @@ LOG_MODULE_REGISTER(drivers_adio_sample);
 #define AUDIO_NUM_CHANNELS		(2)
 #define AUDIO_SAMPLE_BIT_WIDTH		(32)
 
-#define SIGNAL_AMPLITUDE_DBFS		(-36)
-#define SIGNAL_AMPLITUDE_BITS		(31 + (SIGNAL_AMPLITUDE_DBFS / 6))
-#define SIGNAL_AMPLITUDE_SCALE		(1 << SIGNAL_AMPLITUDE_BITS)
-
 static const struct device *codec_device;
 
 static void audio_init(void)
@@ -47,12 +43,12 @@ static void audio_init(void)
 	/* configure codec */
 	codec_cfg.dai_type = AUDIO_DAI_TYPE_I2S,
 	codec_cfg.dai_cfg.i2s = i2s_cfg;
-	codec_cfg.dai_cfg.i2s.options = I2S_OPT_FRAME_CLK_SLAVE |
-				I2S_OPT_BIT_CLK_SLAVE;
 	codec_cfg.dai_cfg.i2s.mem_slab = NULL;
 	codec_cfg.mclk_freq = 12288000U;
 
 	ret = audio_codec_configure(codec_device, &codec_cfg);
+	if (ret)
+		LOG_ERR("Unsupported I2S data format");
 }
 
 static void audio_start(void)
@@ -60,28 +56,40 @@ static void audio_start(void)
 	int ret;
 
 	LOG_DBG("Starting audio playback...");
-	/* start codec output */
-	audio_codec_start_output(codec_device);
-
 	/* start codec input */
 	audio_codec_start_input(codec_device);
 
-	/* set volume */
-	ret = audio_codec_set_property(codec_device, AUDIO_PROPERTY_OUTPUT_VOLUME, AUDIO_CHANNEL_ALL, (audio_property_value_t)0);
+	/* start codec output */
+	audio_codec_start_output(codec_device);
+
+	/* Line out setup */
+	ret = audio_codec_set_property(codec_device, AUDIO_PROPERTY_OUTPUT_VOLUME, AUDIO_CHANNEL_LINE_LEFT, (audio_property_value_t)255);
+	ret = audio_codec_set_property(codec_device, AUDIO_PROPERTY_OUTPUT_VOLUME, AUDIO_CHANNEL_LINE_RIGHT, (audio_property_value_t)255);
+	ret = audio_codec_set_property(codec_device, AUDIO_PROPERTY_OUTPUT_MUTE, AUDIO_CHANNEL_LINE_LEFT, (audio_property_value_t)false);
+	ret = audio_codec_set_property(codec_device, AUDIO_PROPERTY_OUTPUT_MUTE, AUDIO_CHANNEL_LINE_RIGHT, (audio_property_value_t)false);
+
+	/* MIC setup */
+	ret = audio_codec_set_property(codec_device, AUDIO_PROPERTY_INPUT_VOLUME, AUDIO_CHANNEL_MIC_LEFT, (audio_property_value_t)16);
+	ret = audio_codec_set_property(codec_device, AUDIO_PROPERTY_INPUT_VOLUME, AUDIO_CHANNEL_MIC_RIGHT, (audio_property_value_t)16);
+	ret = audio_codec_set_property(codec_device, AUDIO_PROPERTY_INPUT_MUTE, AUDIO_CHANNEL_MIC_LEFT, (audio_property_value_t)false);
+	ret = audio_codec_set_property(codec_device, AUDIO_PROPERTY_INPUT_MUTE, AUDIO_CHANNEL_MIC_RIGHT, (audio_property_value_t)false);
+
+	/* HP setup */
+	ret = audio_codec_set_property(codec_device, AUDIO_PROPERTY_OUTPUT_VOLUME, AUDIO_CHANNEL_HP_LEFT, (audio_property_value_t)57);
+	ret = audio_codec_set_property(codec_device, AUDIO_PROPERTY_OUTPUT_VOLUME, AUDIO_CHANNEL_HP_RIGHT, (audio_property_value_t)57);
+	ret = audio_codec_set_property(codec_device, AUDIO_PROPERTY_OUTPUT_MUTE, AUDIO_CHANNEL_HP_LEFT, (audio_property_value_t)false);
+	ret = audio_codec_set_property(codec_device, AUDIO_PROPERTY_OUTPUT_MUTE, AUDIO_CHANNEL_HP_RIGHT, (audio_property_value_t)false);
 }
 
 static void audio_stop(void)
 {
 	int ret;
 
-	/* set volume */
-	ret = audio_codec_set_property(codec_device, AUDIO_PROPERTY_OUTPUT_MUTE, AUDIO_CHANNEL_ALL, (audio_property_value_t)1);
+	LOG_DBG("Stopping audio playback...");
 
 	audio_codec_stop_output(codec_device);
 
 	audio_codec_stop_input(codec_device);
-
-	LOG_DBG("Stopping audio playback...");
 }
 
 static void audio_sample_app(void *p1, void *p2, void *p3)
@@ -90,7 +98,11 @@ static void audio_sample_app(void *p1, void *p2, void *p3)
 
 	audio_init();
 
+	k_msleep(500);
+
 	audio_start();
+
+	k_msleep(100000);
 
 	audio_stop();
 
